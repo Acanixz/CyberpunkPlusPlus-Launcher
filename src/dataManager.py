@@ -3,6 +3,10 @@ import os.path as path
 import json
 import requests
 import zipfile
+import tkinter as tk
+import shutil
+
+# TO-DO: SAVE LAUNCHER SETTINGS TO FILE
 
 launcherSettings = {
     "Install-Location": "C:/Acanixz/CyberpunkPlusPlus",
@@ -41,7 +45,11 @@ def getVersions():
         print("GET VERSIONS FAILED, HTTP ERROR CODE:", response.status_code, "with the reason:", response.reason)
         return False
 
-def installGame(targetInstallVersion = "latest", overwriteGame = False):
+def installGame(targetInstallVersion = "latest", overwriteGame = False, mainButton = None, installText = "Installing.."):
+
+    if mainButton != None:
+        mainButton.config(text=installText, state=tk.DISABLED, command="")
+    
     if targetInstallVersion == "latest":
         url = "https://github.com/Acanixz/CyberpunkPlusPlus/releases/latest/download/CyberpunkPlusPlus_Compiled.zip"
     else:
@@ -49,12 +57,16 @@ def installGame(targetInstallVersion = "latest", overwriteGame = False):
 
     gameData = requests.get(url, stream=True)
     if gameData.status_code == 200: # Successful download
+        if mainButton != None:
+            mainButton.config(text="Downloading")
         if not path.exists(launcherSettings["Install-Location"]): # Create game directory if it does not exist
             os.makedirs(launcherSettings["Install-Location"])
 
         with open(launcherSettings["Install-Location"] +"/downloadedGame.zip","wb") as outputFile:
             outputFile.write(gameData.content)
 
+        if mainButton != None:
+            mainButton.config(text="Extracting")
         zippedGame = zipfile.ZipFile(launcherSettings["Install-Location"] +"/downloadedGame.zip")
         zippedGame.extractall(launcherSettings["Install-Location"])
         zippedGame.close()
@@ -66,9 +78,20 @@ def installGame(targetInstallVersion = "latest", overwriteGame = False):
                     versionFile.write(launcherSettings["Target-Version"])
                 else:
                     versionFile.write(versionList[0])
-
         return True # Installation successful
     else:
         print("DOWNLOAD FAILED, HTTP ERROR CODE:", gameData.status_code)
         print(url)
         return False # Installation failed!
+
+def moveGame(target="C:/Acanixz"):
+    if path.exists(launcherSettings["Install-Location"] + "/gameVersion.txt"): # Game is still there
+        if not path.exists(target):
+            os.makedirs(target)
+        shutil.move(launcherSettings["Install-Location"], target)
+        launcherSettings["Install-Location"] = target + "/CyberpunkPlusPlus"
+    pass
+
+def uninstallGame():
+    if path.exists(launcherSettings["Install-Location"] + "/gameVersion.txt"):
+        shutil.rmtree(launcherSettings["Install-Location"])
