@@ -4,6 +4,7 @@ import json
 import requests
 import zipfile
 import tkinter as tk
+from tkinter import messagebox
 import shutil
 
 # TO-DO: SAVE LAUNCHER SETTINGS TO FILE
@@ -14,6 +15,16 @@ launcherSettings = {
     "Target-Version": "latest"
 }
 versionList = []
+
+def isGameClosed():
+    if not path.exists(launcherSettings["Install-Location"] + "/CyberpunkPlusPlus.exe"):
+        return True
+
+    try:
+        with open(launcherSettings["Install-Location"] + "/CyberpunkPlusPlus.exe", "wb") as f:
+            return True
+    except OSError:
+        return False
 
 def loadSettings():
     if path.exists("src/settings.json"): # Load settings.json
@@ -32,6 +43,11 @@ def loadSettings():
 
         return launcherSettings
 
+def saveSettings():
+    settingsFile = open("src/settings.json","w")
+    json.dump(launcherSettings, settingsFile)
+    settingsFile.close()
+
 def getVersions():
     url = "https://api.github.com/repos/Acanixz/CyberpunkPlusPlus/tags"
     response = requests.get(url)
@@ -46,6 +62,10 @@ def getVersions():
         return False
 
 def installGame(targetInstallVersion = "latest", overwriteGame = False, mainButton = None, installText = "Installing.."):
+
+    if not isGameClosed():
+        messagebox.showerror("Installation failed!", "Cyberpunk++ is open, please close the game and try again")
+        return False # Cannot update game, file is open
 
     if mainButton != None:
         mainButton.config(text=installText, state=tk.DISABLED, command="")
@@ -81,17 +101,37 @@ def installGame(targetInstallVersion = "latest", overwriteGame = False, mainButt
         return True # Installation successful
     else:
         print("DOWNLOAD FAILED, HTTP ERROR CODE:", gameData.status_code)
-        print(url)
+        messagebox.showerror("Installation failed!", "Download request failed, HTTP error code: " + gameData.status_code)
         return False # Installation failed!
 
 def moveGame(target="C:/Acanixz"):
     if path.exists(launcherSettings["Install-Location"] + "/gameVersion.txt"): # Game is still there
+        if not isGameClosed():
+            messagebox.showerror("Path change failed", "Cyberpunk++ is open, please close the game and try again")
+            return False # Cannot move game, file is open
         if not path.exists(target):
             os.makedirs(target)
-        shutil.move(launcherSettings["Install-Location"], target)
+        shutil.move(launcherSettings["Install-Location"], target, copy_function = shutil.copytree)
         launcherSettings["Install-Location"] = target + "/CyberpunkPlusPlus"
-    pass
+        saveSettings()
+        return True
+    else:
+        launcherSettings["Install-Location"] = target + "/CyberpunkPlusPlus"
+        saveSettings()
+        return True
 
 def uninstallGame():
+    response = messagebox.askyesno("Uninstall game", "Are you sure you want to uninstall Cyberpunk++ from the current path?")
     if path.exists(launcherSettings["Install-Location"] + "/gameVersion.txt"):
-        shutil.rmtree(launcherSettings["Install-Location"])
+        if response:
+            if not isGameClosed():
+                messagebox.showerror("Uninstaller failed", "Cyberpunk++ is open, please close the game and try again")
+                return False # Cannot uninstall game, file is open
+            shutil.rmtree(launcherSettings["Install-Location"])
+            messagebox.showinfo("Game uninstalled", "Cyberpunk++ was uninstalled sucessfully")
+            return True # Game uninstalled
+        else:
+            return False # User choice: No
+    else:
+        messagebox.showerror("Uninstaller failed", "Could not find the game version file inside the current path")
+        return False # Game path invalid, uninstallation failed
