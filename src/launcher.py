@@ -4,6 +4,7 @@ import dataManager as DM # File-related functions
 import tkinter as tk
 import tkinter.ttk as ttk
 import tkinter.filedialog as fd
+from tkinter import messagebox
 from PIL import Image, ImageTk # Image processing
 import threading # Secondary thread, for installing
 import time # Secondary thread while loop
@@ -19,7 +20,7 @@ def checkInstallerState():
             print(launcherState)
             match (launcherState):
                 case -1:
-                    DM.installGame("latest", False)
+                    DM.installGame(launcherSettings["Target-Version"], False)
 
                 case 0:
                     DM.installGame(launcherSettings["Target-Version"], True)
@@ -29,17 +30,23 @@ def checkInstallerState():
             updateLauncherStateAndButton()
         time.sleep(0.5)
 thread = threading.Thread(target=checkInstallerState)
-thread.start()
+thread.start() # Run installer thread in the background
 
 launcherSettings = DM.loadSettings()
 versionList = DM.getVersions()
+
+if versionList == False:
+    messagebox.showerror("Cyberpunk++ Launcher", "Could not fetch version list, please make sure you are connected to the internet and wait a few minutes before trying again")
+    launcherActive = False
 launcherState = -2
-defaultCWD = os.getcwd()
+defaultCWD = os.getcwd() # Original "Current Working Directory"
 
 def getCurrentVersion():
     if path.exists(launcherSettings["Install-Location"] + "/gameVersion.txt"):
         with open(launcherSettings["Install-Location"] + "/gameVersion.txt") as currentVersionFile:
             currentVersion = currentVersionFile.readline()
+            if currentVersion == "latest":
+                currentVersion = versionList[1]
             return currentVersion
     else:
         return "N/A"
@@ -48,21 +55,18 @@ def getLauncherState():
     if path.exists(launcherSettings["Install-Location"] + "/gameVersion.txt"):
         currentVersion = getCurrentVersion()
         if launcherSettings["Target-Version"] != "latest" and launcherSettings["Target-Version"] != currentVersion:
-              # Has target version and downloaded version is different from target
-           #DM.installGame(launcherSettings["Target-Version"], True)
+            # Has target version and downloaded version is different from target
             return 0
 
-        if launcherSettings["Target-Version"] == "latest" and currentVersion != versionList[0]:
+        if launcherSettings["Target-Version"] == "latest" and currentVersion != versionList[1]:
             # No target version and downloaded version differs from newest release
-            #DM.installGame(versionList[0], True)
             return 1
         return 2
     else:
-        #DM.installGame()
+        # Game not installed
         return -1
 
 def updateLauncherStateAndButton():
-    isInstalling = False
     launcherState = getLauncherState()
     match launcherState:
         case -1:
@@ -89,19 +93,16 @@ def mainButtonPressed():
     global launcherState
     launcherState = getLauncherState()
     match launcherState:
-        case -1:
+        case -1: # New installation
             mainButton.config(text="Installing", state=tk.DISABLED, command="")
             isInstalling = True
-            #DM.installGame("latest", False, mainButton)
-        case 0:
+        case 0: # Change version
             mainButton.config(text="Changing to " + launcherSettings["Target-Version"], state=tk.DISABLED, command="")
             isInstalling = True
-            #DM.installGame(launcherSettings["Target-Version"], True)
-        case 1:
+        case 1: # Update to latest
             mainButton.config(text="Updating", state=tk.DISABLED, command="")
             isInstalling = True
-            #DM.installGame(versionList[0], True)
-        case 2:
+        case 2: # Start game
             os.chdir(launcherSettings["Install-Location"])
             os.startfile("CyberpunkPlusPlus.exe")
             os.chdir(defaultCWD)
@@ -112,7 +113,7 @@ def openSettingsWindow():
     global launcherSettings
     global settingsWindowOpen
     global currentPathLabel
-    if settingsWindowOpen:
+    if settingsWindowOpen: # Do not open 2 setting windows
         return False
 
     settingsWindow = tk.Toplevel(window)
@@ -138,16 +139,18 @@ def openSettingsWindow():
     changePathButton = tk.Button(settingsWindow, text="Change installation path", command=moveRequest)
     changePathButton.place(x=237,y=90, anchor="center")
 
+    selectedVersionLabel = tk.Label(settingsWindow, text="Current target version", font=("Terminal",8), bg="Black", fg="White")
+    selectedVersionLabel.place(x=237,y=170, anchor="center")
+
+    selectedVersion = tk.StringVar(settingsWindow, launcherSettings["Target-Version"])
+    versionSelector = tk.OptionMenu(settingsWindow, selectedVersion, *versionList, command=versionChangeCallback)
+    versionSelector.place(x=237,y=190, anchor="center")
+
     uninstallButton = tk.Button(settingsWindow, text="Uninstall game", fg="Red", command=uninstallRequest)
-    uninstallButton.place(x=237,y=150, anchor="center")
+    uninstallButton.place(x=237,y=130, anchor="center")
 
     settingsWindowOpen = True
     return True
-
-def uninstallRequest():
-    result = DM.uninstallGame()
-    if result:
-        updateLauncherStateAndButton()
 
 def moveRequest():
     global launcherSettings
@@ -155,12 +158,21 @@ def moveRequest():
     askResult = fd.askdirectory()
     if askResult != "":
         result = DM.moveGame(askResult)
-        if result:
+        if result: # Game moved successfully, update settings and label
             launcherSettings = DM.loadSettings()
             if currentPathLabel != None:
                 currentPathLabel.config(text="Current installation path\n" + launcherSettings["Install-Location"])
-    else:
-        print("no path chosen")
+
+def versionChangeCallback(versionRequested):
+    global launcherSettings
+    DM.setTargetVersion(versionRequested)
+    launcherSettings = DM.loadSettings()
+    updateLauncherStateAndButton()
+
+def uninstallRequest():
+    result = DM.uninstallGame()
+    if result:
+        updateLauncherStateAndButton()
 
 def settingsWindowClosed(settingsWindow):
     global settingsWindowOpen
@@ -199,5 +211,6 @@ updateLauncherStateAndButton()
 window.geometry("474x305")
 window.eval('tk::PlaceWindow . center')
 
-window.mainloop()
-launcherActive = False
+if launcherActive:
+    window.mainloop()
+launcherActive = False # Finish background proccess
