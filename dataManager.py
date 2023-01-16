@@ -96,7 +96,7 @@ def installGame(targetInstallVersion = "latest", overwriteGame = False):
                 if launcherSettings["Target-Version"] != "latest":
                     versionFile.write(launcherSettings["Target-Version"])
                 else:
-                    versionFile.write(versionList[0])
+                    versionFile.write(versionList[1])
         return True # Installation successful
     else:
         print("DOWNLOAD FAILED, HTTP ERROR CODE:", gameData.status_code)
