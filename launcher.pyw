@@ -45,6 +45,9 @@ def getCurrentVersion():
     if path.exists(launcherSettings["Install-Location"] + "/gameVersion.txt"):
         with open(launcherSettings["Install-Location"] + "/gameVersion.txt") as currentVersionFile:
             currentVersion = currentVersionFile.readline()
+            # Only exists due to old versions, new versions no longer label latest
+            # as versionList[1] due to the paradox that it will always be the latest
+            # so it will never be considered outdated
             if currentVersion == "latest":
                 currentVersion = versionList[1]
             return currentVersion
