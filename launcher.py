@@ -116,11 +116,6 @@ def openSettingsWindow():
     if settingsWindowOpen: # Do not open 2 setting windows
         return False
 
-    # Create a PhotoImage with a transparent color
-    transparent_img = tk.PhotoImage(width=1, height=1)
-    transparent_img.put("#ffffff", to=(0, 0, 1, 1))
-    transparent_img.transparency = 1
-
     settingsWindow = tk.Toplevel(window)
     settingsWindow.config(bg="black")
     settingsWindow.title("Cyberpunk++ Launcher Settings")
@@ -138,13 +133,13 @@ def openSettingsWindow():
     titleLabel = tk.Label(settingsWindow, text="Settings", font=("Terminal",20), bg="Black", fg="White")
     titleLabel.pack()
 
-    currentPathLabel = tk.Label(settingsWindow, text="Current installation path\n" + launcherSettings["Install-Location"], font=("Terminal",8), bg=transparent_img, fg="White")
+    currentPathLabel = tk.Label(settingsWindow, text="Current installation path\n" + launcherSettings["Install-Location"], font=("Terminal",8), bg="Black", fg="White")
     currentPathLabel.pack()
 
     changePathButton = tk.Button(settingsWindow, text="Change installation path", command=moveRequest)
     changePathButton.place(x=237,y=90, anchor="center")
 
-    selectedVersionLabel = tk.Label(settingsWindow, text="Current target version", font=("Terminal",8), highlightbackground="transparent", fg="White")
+    selectedVersionLabel = tk.Label(settingsWindow, text="Current target version", font=("Terminal",8), bg="Black", fg="White")
     selectedVersionLabel.place(x=237,y=170, anchor="center")
 
     selectedVersion = tk.StringVar(settingsWindow, launcherSettings["Target-Version"])
